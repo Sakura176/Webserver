@@ -22,6 +22,7 @@ public:
         FINISH,        
     };
 
+    // 枚举变量，请求类型
     enum HTTP_CODE {
         NO_REQUEST = 0,
         GET_REQUEST,
@@ -34,6 +35,7 @@ public:
     };
     
     HttpRequest() { Init(); }
+    // 默认析构函数
     ~HttpRequest() = default;
 
     void Init();
