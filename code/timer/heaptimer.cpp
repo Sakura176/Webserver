@@ -1,8 +1,13 @@
 #include "heaptimer.h"
 
+/**
+ * 循环移动较小值， 知道排序正确
+*/
 void HeapTimer::siftup_(size_t i) {
     assert(i >= 0 && i < heap_.size());
+    // 计算当前节点的根节点的索引
     size_t j = (i - 1) / 2;
+    // 循环比较根节点与当前节点的大小
     while(j >= 0) {
         if(heap_[j] < heap_[i]) { break; }
         SwapNode_(i, j);
@@ -34,14 +39,21 @@ bool HeapTimer::siftdown_(size_t index, size_t n) {
     return i > index;
 }
 
+/**
+ * 插入节点
+ * @param id 节点id
+*/
 void HeapTimer::add(int id, int timeout, const TimeoutCallBack& cb) {
     assert(id >= 0);
     size_t i;
+    // 
     if(ref_.count(id) == 0) {
         /* 新节点：堆尾插入，调整堆 */
         i = heap_.size();
+        // 定时器节点位置与定时器id插入哈希映射
         ref_[id] = i;
-        heap_.push_back({id, Clock::now() + MS(timeout), cb});
+        // 堆尾插入定时器节点
+        heap_.push_back({id, Clock::now() + MS(timeout), cb}); 
         siftup_(i);
     } 
     else {
@@ -116,10 +128,14 @@ void HeapTimer::clear() {
     heap_.clear();
 }
 
+/**
+ * 获取下一个节点
+*/
 int HeapTimer::GetNextTick() {
     tick();
     size_t res = -1;
     if(!heap_.empty()) {
+        // 计算小根堆顶元素与当前时间的差值
         res = std::chrono::duration_cast<MS>(heap_.front().expires - Clock::now()).count();
         if(res < 0) { res = 0; }
     }

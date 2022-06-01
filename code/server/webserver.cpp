@@ -18,6 +18,7 @@ WebServer::WebServer(
     SqlConnPool::Instance()->Init("localhost", sqlPort, sqlUser, sqlPwd, dbName, connPoolNum);
 
     InitEventMode_(trigMode);
+    // 初始化套接字失败，则关闭服务器
     if(!InitSocket_()) { isClose_ = true;}
 
     if(openLog) {
@@ -68,18 +69,24 @@ void WebServer::InitEventMode_(int trigMode) {
     HttpConn::isET = (connEvent_ & EPOLLET);
 }
 
+/**
+ * 服务器启动函数
+*/
 void WebServer::Start() {
     int timeMS = -1;  /* epoll wait timeout == -1 无事件将阻塞 */
     if(!isClose_) { LOG_INFO("========== Server start =========="); }
     while(!isClose_) {
         if(timeoutMS_ > 0) {
+            // 获取事件等待时间
             timeMS = timer_->GetNextTick();
         }
+        // 获取等待事件的数量
         int eventCnt = epoller_->Wait(timeMS);
         for(int i = 0; i < eventCnt; i++) {
             /* 处理事件 */
             int fd = epoller_->GetEventFd(i);
             uint32_t events = epoller_->GetEvents(i);
+            // 如果套接字描述符与等待队列中的句柄一致，则处理
             if(fd == listenFd_) {
                 DealListen_();
             }
@@ -87,6 +94,7 @@ void WebServer::Start() {
                 assert(users_.count(fd) > 0);
                 CloseConn_(&users_[fd]);
             }
+            // 可读
             else if(events & EPOLLIN) {
                 assert(users_.count(fd) > 0);
                 DealRead_(&users_[fd]);
@@ -117,21 +125,31 @@ void WebServer::CloseConn_(HttpConn* client) {
     client->Close();
 }
 
+/**
+ * @brief 增加客户端
+*/
 void WebServer::AddClient_(int fd, sockaddr_in addr) {
     assert(fd > 0);
+    // 根据句柄和地址与客户端连接
     users_[fd].init(fd, addr);
+    // 若阻塞时间大于0， 则加入阻塞队列
     if(timeoutMS_ > 0) {
         timer_->add(fd, timeoutMS_, std::bind(&WebServer::CloseConn_, this, &users_[fd]));
     }
+    // 添加事件到 epoll类中
     epoller_->AddFd(fd, EPOLLIN | connEvent_);
     SetFdNonblock(fd);
     LOG_INFO("Client[%d] in!", users_[fd].GetFd());
 }
 
+/**
+ * @brief 处理监听事件,
+*/
 void WebServer::DealListen_() {
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
     do {
+        // 接受套接字句柄,成功返回一个新的socket文件描述符，用于和客户端通信
         int fd = accept(listenFd_, (struct sockaddr *)&addr, &len);
         if(fd <= 0) { return;}
         else if(HttpConn::userCount >= MAX_FD) {
@@ -202,7 +220,9 @@ void WebServer::OnWrite_(HttpConn* client) {
     CloseConn_(client);
 }
 
-/* Create listenFd */
+/**
+ * @brief Create listenFd 初始化套接字
+ * */
 bool WebServer::InitSocket_() {
     int ret;
     struct sockaddr_in addr;
@@ -213,19 +233,22 @@ bool WebServer::InitSocket_() {
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = htons(port_);
+    // 设置TCP断开连接的方式
     struct linger optLinger = { 0 };
     if(openLinger_) {
         /* 优雅关闭: 直到所剩数据发送完毕或超时 */
         optLinger.l_onoff = 1;
         optLinger.l_linger = 1;
     }
-
+    // 返回socket描述字
     listenFd_ = socket(AF_INET, SOCK_STREAM, 0);
+
     if(listenFd_ < 0) {
         LOG_ERROR("Create socket error!", port_);
         return false;
     }
 
+    // 设置套接字选项
     ret = setsockopt(listenFd_, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
     if(ret < 0) {
         close(listenFd_);
@@ -256,6 +279,7 @@ bool WebServer::InitSocket_() {
         close(listenFd_);
         return false;
     }
+    // 增加句柄
     ret = epoller_->AddFd(listenFd_,  listenEvent_ | EPOLLIN);
     if(ret == 0) {
         LOG_ERROR("Add listen error!");
@@ -267,7 +291,11 @@ bool WebServer::InitSocket_() {
     return true;
 }
 
+/**
+ * @brief 
+*/
 int WebServer::SetFdNonblock(int fd) {
     assert(fd > 0);
+    // 根据文件描述词来操作文件的特性。
     return fcntl(fd, F_SETFL, fcntl(fd, F_GETFD, 0) | O_NONBLOCK);
 }

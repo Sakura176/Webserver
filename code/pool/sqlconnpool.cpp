@@ -22,6 +22,7 @@ void SqlConnPool::Init(const char* host, int port,
             LOG_ERROR("MySql init error!");
             assert(sql);
         }
+        // 连接成功，返回连接句柄
         sql = mysql_real_connect(sql, host,
                                  user, pwd,
                                  dbName, port, nullptr, 0);
@@ -31,6 +32,7 @@ void SqlConnPool::Init(const char* host, int port,
         connQue_.push(sql);
     }
     MAX_CONN_ = connSize;
+    // 信号量初始化函数， 该信号量只能为当前进程的所有线程共享
     sem_init(&semId_, 0, MAX_CONN_);
 }
 

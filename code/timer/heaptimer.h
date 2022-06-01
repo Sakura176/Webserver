@@ -16,14 +16,22 @@ typedef std::chrono::high_resolution_clock Clock;
 typedef std::chrono::milliseconds MS;
 typedef Clock::time_point TimeStamp;
 
+/**
+ * 定时器结点，
+*/
 struct TimerNode {
     int id;
-    TimeStamp expires;
+    TimeStamp expires; // 时间戳
     TimeoutCallBack cb;
+    // 运算符重载，比较两个定时器节点的时间戳
     bool operator<(const TimerNode& t) {
         return expires < t.expires;
     }
 };
+
+/**
+ * 定时器，小根堆实现，每个节点的数据都比其子节点小
+*/
 class HeapTimer {
 public:
     HeapTimer() { heap_.reserve(64); }
@@ -53,8 +61,10 @@ private:
 
     void SwapNode_(size_t i, size_t j);
 
+    // 堆，保存定时器节点
     std::vector<TimerNode> heap_;
 
+    // 哈希映射， 存储定时器节点位置
     std::unordered_map<int, size_t> ref_;
 };
 

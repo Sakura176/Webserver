@@ -13,6 +13,9 @@
 #include "httprequest.h"
 #include "httpresponse.h"
 
+/**
+ * http 连接类
+*/
 class HttpConn {
 public:
     HttpConn();

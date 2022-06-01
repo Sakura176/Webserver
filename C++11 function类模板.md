@@ -52,3 +52,24 @@ int main()
 
 ### notify_all()
 唤醒等待队列中所有阻塞的的线程，存在锁竞争，只有一个线程能获得锁。
+
+## socket套接字
+
+### struct linger 结构体
+TCP连接断开的时候调用closesocket函数，有`优雅的断开`和`强制断开`两种方式
+
+```C++
+#include <arpa/inet.h>
+struct linger
+{
+	int l_onoff;
+	int l_linger;
+};
+```
+有三种组合方式：
+1. l_onoff = 0 && l_linger忽略
+	+ 立刻返回，未发送完的数据发送完成后再释放资源，即`优雅的断开`。
+2. l_onoff非零 && l_linger = 0
+	+ 立刻返回，不发送未发送完成的数据，即`强制断开`。
+3. l_onoff非零 && l_linger > 0
+	+ 不立刻返回，内核延迟l_linger时间，超时前发送完成，返回正确；未发送完成返回错误，数据丢失。
